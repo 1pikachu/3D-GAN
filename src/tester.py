@@ -104,6 +104,7 @@ def tester(args):
                 try:
                     G = torch.jit.trace(G, z, check_trace=False, strict=False)
                     print("---- JIT trace enable.")
+                    G = torch.jit.freeze(G)
                 except (RuntimeError, TypeError) as e:
                     print("---- JIT trace disable.")
                     print("failed to use PyTorch jit mode due to: ", e)
@@ -116,6 +117,7 @@ def tester(args):
                     try:
                         D = torch.jit.trace(D, fake, check_trace=False, strict=False)
                         print("---- JIT trace enable.")
+                        D = torch.jit.freeze(D)
                     except (RuntimeError, TypeError) as e:
                         print("---- JIT trace disable.")
                         print("failed to use PyTorch jit mode due to: ", e)
@@ -160,6 +162,7 @@ def tester(args):
                     try:
                         G = torch.jit.trace(G, z, check_trace=False, strict=False)
                         print("---- JIT trace enable.")
+                        G = torch.jit.freeze(G)
                     except (RuntimeError, TypeError) as e:
                         print("---- JIT trace disable.")
                         print("failed to use PyTorch jit mode due to: ", e)
@@ -172,6 +175,7 @@ def tester(args):
                         try:
                             D = torch.jit.trace(D, fake, check_trace=False, strict=False)
                             print("---- JIT trace enable.")
+                            D = torch.jit.freeze(D)
                         except (RuntimeError, TypeError) as e:
                             print("---- JIT trace disable.")
                             print("failed to use PyTorch jit mode due to: ", e)
@@ -204,6 +208,7 @@ def tester(args):
                     try:
                         G = torch.jit.trace(G, z, check_trace=False, strict=False)
                         print("---- JIT trace enable.")
+                        G = torch.jit.freeze(G)
                     except (RuntimeError, TypeError) as e:
                         print("---- JIT trace disable.")
                         print("failed to use PyTorch jit mode due to: ", e)
@@ -215,6 +220,7 @@ def tester(args):
                     try:
                         D = torch.jit.trace(D, fake, check_trace=False, strict=False)
                         print("---- JIT trace enable.")
+                        D = torch.jit.freeze(D)
                     except (RuntimeError, TypeError) as e:
                         print("---- JIT trace disable.")
                         print("failed to use PyTorch jit mode due to: ", e)
@@ -236,6 +242,7 @@ def tester(args):
                 try:
                     G = torch.jit.trace(G, z, check_trace=False, strict=False)
                     print("---- JIT trace enable.")
+                    G = torch.jit.freeze(G)
                 except (RuntimeError, TypeError) as e:
                     print("---- JIT trace disable.")
                     print("failed to use PyTorch jit mode due to: ", e)
@@ -249,6 +256,7 @@ def tester(args):
                     try:
                         D = torch.jit.trace(D, fake, check_trace=False, strict=False)
                         print("---- JIT trace enable.")
+                        D = torch.jit.freeze(D)
                     except (RuntimeError, TypeError) as e:
                         print("---- JIT trace disable.")
                         print("failed to use PyTorch jit mode due to: ", e)
@@ -270,8 +278,8 @@ def tester(args):
             if args.jit and i == 0:
                 try:
                     G = torch.jit.trace(G, z, check_trace=False, strict=False)
-                    G = torch.jit.freeze(G)
                     print("---- JIT trace enable.")
+                    G = torch.jit.freeze(G)
                 except (RuntimeError, TypeError) as e:
                     print("---- JIT trace disable.")
                     print("failed to use PyTorch jit mode due to: ", e)
