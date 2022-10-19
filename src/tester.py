@@ -72,6 +72,21 @@ def tester(args):
     G.eval()
     D.eval()
 
+    if args.channels_last:
+        try:
+            G = G.to(memory_format=torch.channels_last)
+            D = D.to(memory_format=torch.channels_last)
+            print("---- use NHWC format")
+        except RuntimeError as e:
+            print("---- use normal format")
+            print("failed to enable NHWC: ", e)
+
+    if args.nv_fuser:
+       fuser_mode = "fuser2"
+    else:
+       fuser_mode = "none"
+    print("---- fuser mode:", fuser_mode)
+
     # test_z = np.load("test_z.npy")
     # print (test_z.shape)
     # N = test_z.shape[0]
@@ -80,39 +95,230 @@ def tester(args):
     total_time = 0.0
     total_sample = 0
 
-    for i in range(N):
-        # z = test_z[i,:]
-        # z = torch.FloatTensor(z)
+    if args.profile and args.device == "xpu":
+        for i in range(N):
+            z = generateZ(args, args.batch_size)
+            if args.channels_last:
+                z = z.to(memory_format=torch.channels_last) if len(z.shape) == 4 else z
+            if args.jit and i == 0:
+                try:
+                    G = torch.jit.trace(G, z, check_trace=False, strict=False)
+                    print("---- JIT trace enable.")
+                except (RuntimeError, TypeError) as e:
+                    print("---- JIT trace disable.")
+                    print("failed to use PyTorch jit mode due to: ", e)
+            
+            with torch.autograd.profiler_legacy.profile(enabled=args.profile, use_xpu=True, record_shapes=False) as prof:
+                elapsed = time.time()
+                fake = G(z)
+                samples = fake.unsqueeze(dim=0).detach().cpu().numpy()
+                if args.jit and i == 0:
+                    try:
+                        D = torch.jit.trace(D, fake, check_trace=False, strict=False)
+                        print("---- JIT trace enable.")
+                    except (RuntimeError, TypeError) as e:
+                        print("---- JIT trace disable.")
+                        print("failed to use PyTorch jit mode due to: ", e)
+                y_prob = D(fake)
+                torch.xpu.synchronize()
+                elapsed = time.time() - elapsed
 
-        z = generateZ(args, args.batch_size)
+            y_real = torch.ones_like(y_prob)
 
-        # print (z.size())
-        elapsed = time.time()
-        fake = G(z)
-        samples = fake.unsqueeze(dim=0).detach().cpu().numpy()
-        # print (samples.shape)
-        # print (fake)
-        y_prob = D(fake)
-        elapsed = time.time() - elapsed
+            print("Iteration: {}, inference time: {} sec.".format(i, elapsed), flush=True)
+            if i >= args.num_warmup:
+                    total_sample += args.batch_size
+                    total_time += elapsed
+            if args.profile and i == int((args.num_iter + args.num_warmup)/2):
+                import pathlib
+                timeline_dir = str(pathlib.Path.cwd()) + '/timeline/'
+                if not os.path.exists(timeline_dir):
+                    try:
+                        os.makedirs(timeline_dir)
+                    except:
+                        pass
+                torch.save(prof.key_averages().table(sort_by="self_xpu_time_total"),
+                    timeline_dir+'profile.pt')
+                torch.save(prof.key_averages(group_by_input_shape=True).table(),
+                    timeline_dir+'profile_detail.pt')
+    elif args.profile and args.device == "cuda":
+        with torch.profiler.profile(
+            activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
+            record_shapes=True,
+            schedule=torch.profiler.schedule(
+                wait=int((args.num_iter + args.num_warmup)/2),
+                warmup=2,
+                active=1,
+            ),
+            on_trace_ready=trace_handler,
+        ) as p:
+            for i in range(N):
+                z = generateZ(args, args.batch_size)
+                if args.channels_last:
+                    z = z.to(memory_format=torch.channels_last) if len(z.shape) == 4 else z
+                if args.jit and i == 0:
+                    try:
+                        G = torch.jit.trace(G, z, check_trace=False, strict=False)
+                        print("---- JIT trace enable.")
+                    except (RuntimeError, TypeError) as e:
+                        print("---- JIT trace disable.")
+                        print("failed to use PyTorch jit mode due to: ", e)
+                
+                with torch.jit.fuser(fuser_mode):
+                    elapsed = time.time()
+                    fake = G(z)
+                    samples = fake.unsqueeze(dim=0).detach().cpu().numpy()
+                    if args.jit and i == 0:
+                        try:
+                            D = torch.jit.trace(D, fake, check_trace=False, strict=False)
+                            print("---- JIT trace enable.")
+                        except (RuntimeError, TypeError) as e:
+                            print("---- JIT trace disable.")
+                            print("failed to use PyTorch jit mode due to: ", e)
+                    y_prob = D(fake)
+                torch.cuda.synchronize()
+                elapsed = time.time() - elapsed
+                p.step()
+                y_real = torch.ones_like(y_prob)
 
-        y_real = torch.ones_like(y_prob)
+                print("Iteration: {}, inference time: {} sec.".format(i, elapsed), flush=True)
+                if i >= args.num_warmup:
+                        total_sample += args.batch_size
+                        total_time += elapsed
+    elif args.profile and args.device == "cpu":
+        with torch.profiler.profile(
+            activities=[torch.profiler.ProfilerActivity.CPU],
+            record_shapes=True,
+            schedule=torch.profiler.schedule(
+                wait=int((args.num_iter + args.num_warmup)/2),
+                warmup=2,
+                active=1,
+            ),
+            on_trace_ready=trace_handler,
+        ) as p:
+            for i in range(N):
+                z = generateZ(args, args.batch_size)
+                if args.channels_last:
+                    z = z.to(memory_format=torch.channels_last) if len(z.shape) == 4 else z
+                if args.jit and i == 0:
+                    try:
+                        G = torch.jit.trace(G, z, check_trace=False, strict=False)
+                        print("---- JIT trace enable.")
+                    except (RuntimeError, TypeError) as e:
+                        print("---- JIT trace disable.")
+                        print("failed to use PyTorch jit mode due to: ", e)
+                
+                elapsed = time.time()
+                fake = G(z)
+                samples = fake.unsqueeze(dim=0).detach().cpu().numpy()
+                if args.jit and i == 0:
+                    try:
+                        D = torch.jit.trace(D, fake, check_trace=False, strict=False)
+                        print("---- JIT trace enable.")
+                    except (RuntimeError, TypeError) as e:
+                        print("---- JIT trace disable.")
+                        print("failed to use PyTorch jit mode due to: ", e)
+                y_prob = D(fake)
+                elapsed = time.time() - elapsed
+                p.step()
+                y_real = torch.ones_like(y_prob)
 
-        print("Iteration: {}, inference time: {} sec.".format(i, elapsed), flush=True)
-        if i >= args.num_warmup:
-                total_sample += args.batch_size
-                total_time += elapsed
+                print("Iteration: {}, inference time: {} sec.".format(i, elapsed), flush=True)
+                if i >= args.num_warmup:
+                        total_sample += args.batch_size
+                        total_time += elapsed
+    elif not args.profile and args.device == "cuda":
+        for i in range(N):
+            z = generateZ(args, args.batch_size)
+            if args.channels_last:
+                z = z.to(memory_format=torch.channels_last) if len(z.shape) == 4 else z
+            if args.jit and i == 0:
+                try:
+                    G = torch.jit.trace(G, z, check_trace=False, strict=False)
+                    print("---- JIT trace enable.")
+                except (RuntimeError, TypeError) as e:
+                    print("---- JIT trace disable.")
+                    print("failed to use PyTorch jit mode due to: ", e)
+            
 
-        # criterion = nn.BCELoss()
-        # print (y_prob.item(), criterion(y_prob, y_real).item())
+            with torch.jit.fuser(fuser_mode):
+                elapsed = time.time()
+                fake = G(z)
+                samples = fake.unsqueeze(dim=0).detach().cpu().numpy()
+                if args.jit and i == 0:
+                    try:
+                        D = torch.jit.trace(D, fake, check_trace=False, strict=False)
+                        print("---- JIT trace enable.")
+                    except (RuntimeError, TypeError) as e:
+                        print("---- JIT trace disable.")
+                        print("failed to use PyTorch jit mode due to: ", e)
+                y_prob = D(fake)
+            torch.cuda.synchronize()
+            elapsed = time.time() - elapsed
 
-        # visualization
-        if not args.use_visdom:
-            SavePloat_Voxels(samples, image_saved_path, 'tester_' + str(i))  # norm_
-        else:
-            plotVoxelVisdom(samples[0, :], vis, "tester_" + str(i))
+            y_real = torch.ones_like(y_prob)
+
+            print("Iteration: {}, inference time: {} sec.".format(i, elapsed), flush=True)
+            if i >= args.num_warmup:
+                    total_sample += args.batch_size
+                    total_time += elapsed
+    else:
+        for i in range(N):
+            z = generateZ(args, args.batch_size)
+            if args.channels_last:
+                z = z.to(memory_format=torch.channels_last) if len(z.shape) == 4 else z
+            if args.jit and i == 0:
+                try:
+                    G = torch.jit.trace(G, z, check_trace=False, strict=False)
+                    print("---- JIT trace enable.")
+                except (RuntimeError, TypeError) as e:
+                    print("---- JIT trace disable.")
+                    print("failed to use PyTorch jit mode due to: ", e)
+            
+
+            elapsed = time.time()
+            fake = G(z)
+            samples = fake.unsqueeze(dim=0).detach().cpu().numpy()
+            if args.jit and i == 0:
+                try:
+                    D = torch.jit.trace(D, fake, check_trace=False, strict=False)
+                    print("---- JIT trace enable.")
+                except (RuntimeError, TypeError) as e:
+                    print("---- JIT trace disable.")
+                    print("failed to use PyTorch jit mode due to: ", e)
+            y_prob = D(fake)
+            if args.device == "xpu":
+                torch.xpu.synchronize()
+            elapsed = time.time() - elapsed
+
+            y_real = torch.ones_like(y_prob)
+
+            print("Iteration: {}, inference time: {} sec.".format(i, elapsed), flush=True)
+            if i >= args.num_warmup:
+                    total_sample += args.batch_size
+                    total_time += elapsed
+
+    # visualization
+    if not args.use_visdom:
+        SavePloat_Voxels(samples, image_saved_path, 'tester_' + str(i))  # norm_
+    else:
+        plotVoxelVisdom(samples[0, :], vis, "tester_" + str(i))
 
     latency = total_time / total_sample * 1000
     throughput = total_sample / total_time
     print("inference Latency: {} ms".format(latency))
     print("inference Throughput: {} samples/s".format(throughput))
 
+def trace_handler(p):
+    output = p.key_averages().table(sort_by="self_cpu_time_total")
+    print(output)
+    import pathlib
+    timeline_dir = str(pathlib.Path.cwd()) + '/timeline/'
+    if not os.path.exists(timeline_dir):
+        try:
+            os.makedirs(timeline_dir)
+        except:
+            pass
+    timeline_file = timeline_dir + 'timeline-' + str(torch.backends.quantized.engine) + \
+            '-' + str(p.step_num) + '-' + str(os.getpid()) + '.json'
+    p.export_chrome_trace(timeline_file)

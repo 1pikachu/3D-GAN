@@ -47,11 +47,35 @@ def main():
     # list params
     args = params.print_params(args)
 
+    if args.device == "xpu":
+        import intel_extension_for_pytorch
+    elif args.device == "cuda":
+        torch.backends.cuda.matmul.allow_tf32 = False
+
     # run program
     if not args.test:
         trainer(args)
     else:
-        tester(args)
+        with torch.inference_mode():
+            if args.precision == "float16" and args.device == "cuda":
+                print("---- Use autocast fp16 cuda")
+                with torch.cuda.amp.autocast(enabled=True, dtype=torch.float16):
+                    tester(args)
+            elif args.precision == "float16" and args.device == "xpu":
+                print("---- Use autocast fp16 xpu")
+                with torch.xpu.amp.autocast(enabled=True, dtype=torch.float16, cache_enabled=True):
+                    tester(args)
+            elif args.precision == "bfloat16" and args.device == "cpu":
+                print("---- Use autocast bf16 cpu")
+                with torch.cpu.amp.autocast(enabled=True, dtype=torch.bfloat16):
+                    tester(args)
+            elif args.precision == "bfloat16" and args.device == "xpu":
+                print("---- Use autocast bf16 xpu")
+                with torch.xpu.amp.autocast(dtype=torch.bfloat16):
+                    tester(args)
+            else:
+                print("---- no autocast")
+                tester(args)
 
 
 if __name__ == '__main__':
