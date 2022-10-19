@@ -16,9 +16,9 @@ class net_G(torch.nn.Module):
     def __init__(self, args):
         super(net_G, self).__init__()
         self.args = args
-        self.cube_len = params.cube_len
-        self.bias = params.bias
-        self.z_dim = params.z_dim
+        self.cube_len = args.cube_len
+        self.bias = args.bias
+        self.z_dim = args.z_dim
         self.f_dim = 32
 
         padd = (0, 0, 0)
@@ -66,9 +66,9 @@ class net_D(torch.nn.Module):
     def __init__(self, args):
         super(net_D, self).__init__()
         self.args = args
-        self.cube_len = params.cube_len
-        self.leak_value = params.leak_value
-        self.bias = params.bias
+        self.cube_len = args.cube_len
+        self.leak_value = args.leak_value
+        self.bias = args.bias
 
         padd = (0,0,0)
         if self.cube_len == 32:

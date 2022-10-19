@@ -15,6 +15,7 @@ from model import net_G, net_D
 
 # added
 import datetime
+import time
 from tensorboardX import SummaryWriter
 import matplotlib.pyplot as plt
 import numpy as np
@@ -39,14 +40,14 @@ def tester(args):
 
     # image_saved_path = '../images'
     # image_saved_path = params.images_dir
-    image_saved_path = params.output_dir + '/' + args.model_name + '/' + args.logs + '/test_outputs'
+    image_saved_path = args.output_dir + '/' + args.model_name + '/' + args.logs + '/test_outputs'
     if not os.path.exists(image_saved_path):
         os.makedirs(image_saved_path)
 
     if args.use_visdom:
         vis = visdom.Visdom()
 
-    save_file_path = params.output_dir + '/' + args.model_name
+    save_file_path = args.output_dir + '/' + args.model_name
     pretrained_file_path_G = save_file_path + '/' + args.logs + '/models/G.pth'
     pretrained_file_path_D = save_file_path + '/' + args.logs + '/models/D.pth'
 
@@ -66,8 +67,8 @@ def tester(args):
 
     # test generator
     # test_gen(args)
-    G.to(params.device)
-    D.to(params.device)
+    G.to(args.device)
+    D.to(args.device)
     G.eval()
     D.eval()
 
@@ -75,21 +76,32 @@ def tester(args):
     # print (test_z.shape)
     # N = test_z.shape[0]
 
-    N = 8
+    N = args.num_iter + args.num_warmup
+    total_time = 0.0
+    total_sample = 0
 
     for i in range(N):
         # z = test_z[i,:]
         # z = torch.FloatTensor(z)
 
-        z = generateZ(args, 1)
+        z = generateZ(args, args.batch_size)
 
         # print (z.size())
+        elapsed = time.time()
         fake = G(z)
         samples = fake.unsqueeze(dim=0).detach().cpu().numpy()
         # print (samples.shape)
         # print (fake)
         y_prob = D(fake)
+        elapsed = time.time() - elapsed
+
         y_real = torch.ones_like(y_prob)
+
+        print("Iteration: {}, inference time: {} sec.".format(i, elapsed), flush=True)
+        if i >= args.num_warmup:
+                total_sample += args.batch_size
+                total_time += elapsed
+
         # criterion = nn.BCELoss()
         # print (y_prob.item(), criterion(y_prob, y_real).item())
 
@@ -98,3 +110,9 @@ def tester(args):
             SavePloat_Voxels(samples, image_saved_path, 'tester_' + str(i))  # norm_
         else:
             plotVoxelVisdom(samples[0, :], vis, "tester_" + str(i))
+
+    latency = total_time / total_sample * 1000
+    throughput = total_sample / total_time
+    print("inference Latency: {} ms".format(latency))
+    print("inference Throughput: {} samples/s".format(throughput))
+

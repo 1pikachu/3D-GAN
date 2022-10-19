@@ -11,8 +11,8 @@ import scipy.io as io
 import matplotlib
 import params
 
-if params.device.type != 'cpu':
-    matplotlib.use('Agg')
+#if params.device.type != 'cpu':
+matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
 import skimage.measure as sk
@@ -102,10 +102,10 @@ class ShapeNetDataset(data.Dataset):
 
 def generateZ(args, batch):
 
-    if params.z_dis == "norm":
-        Z = torch.Tensor(batch, params.z_dim).normal_(0, 0.33).to(params.device)
-    elif params.z_dis == "uni":
-        Z = torch.randn(batch, params.z_dim).to(params.device).to(params.device)
+    if args.z_dis == "norm":
+        Z = torch.Tensor(batch, args.z_dim).normal_(0, 0.33).to(args.device)
+    elif args.z_dis == "uni":
+        Z = torch.randn(batch, args.z_dim).to(args.device).to(args.device)
     else:
         print("z_dist is not normal or uniform")
 
