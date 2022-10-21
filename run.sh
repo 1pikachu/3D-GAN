@@ -1,3 +1,5 @@
+pip install scikit-image tensorboardX visdom==0.2.1
+
 mkdir -p outputs/dcgan
 cp -r /home2/pytorch-broad-models/3D-GAN/dcgan_pretrained/first_test outputs/dcgan/.
 
