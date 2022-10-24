@@ -308,16 +308,16 @@ def tester(args):
                     total_sample += args.batch_size
                     total_time += elapsed
 
+    latency = total_time / total_sample * 1000
+    throughput = total_sample / total_time
+    print("inference Latency: {} ms".format(latency))
+    print("inference Throughput: {} samples/s".format(throughput))
+
     # visualization
     if not args.use_visdom:
         SavePloat_Voxels(samples, image_saved_path, 'tester_' + str(i))  # norm_
     else:
         plotVoxelVisdom(samples[0, :], vis, "tester_" + str(i))
-
-    latency = total_time / total_sample * 1000
-    throughput = total_sample / total_time
-    print("inference Latency: {} ms".format(latency))
-    print("inference Throughput: {} samples/s".format(throughput))
 
 def trace_handler(p):
     output = p.key_averages().table(sort_by="self_cpu_time_total")
