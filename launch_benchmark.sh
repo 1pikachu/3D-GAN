@@ -12,6 +12,7 @@ function main {
     pip install scikit-image tensorboardX visdom==0.2.1
     mkdir -p ${workload_dir}/outputs/dcgan
     cp -r ${CKPT_DIR} ${workload_dir}/outputs/dcgan/.
+    cd ${workload_dir}/src
 
     # if multiple use 'xxx,xxx,xxx'
     model_name_list=($(echo "${model_name}" |sed 's/,/ /g'))
