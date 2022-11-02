@@ -10,9 +10,9 @@ function main {
 
     # requirements
     pip install scikit-image tensorboardX visdom==0.2.1
-    mkdir -p ${workload_dir}/outputs/dcgan
-    cp -r ${CKPT_DIR} ${workload_dir}/outputs/dcgan/.
-    cd ${workload_dir}/src
+    mkdir -p outputs/dcgan
+    cp -r ${CKPT_DIR} outputs/dcgan/.
+    cd src
 
     # if multiple use 'xxx,xxx,xxx'
     model_name_list=($(echo "${model_name}" |sed 's/,/ /g'))
@@ -27,7 +27,7 @@ function main {
             # clean workspace
             logs_path_clean
             # generate launch script for multiple instance
-            if [ "${OOB_USE_LAUNCHER}" == "1" ] && [ "${device}" != "cuda" ];then
+            if [ "${OOB_USE_LAUNCHER}" == "1" ] && [ "${device}" == "cpu" ];then
                 generate_core_launcher
             else
                 generate_core
@@ -53,11 +53,12 @@ function generate_core {
         log_file="${log_dir}/rcpi${real_cores_per_instance}-ins${i}.log"
 
         # instances
-        if [ "${device}" != "cuda" ];then
+        if [ "${device}" == "cpu" ];then
             OOB_EXEC_HEADER=" numactl -m $(echo ${device_array[i]} |awk -F ';' '{print $2}') "
             OOB_EXEC_HEADER+=" -C $(echo ${device_array[i]} |awk -F ';' '{print $1}') "
-        else
+        elif [ "${device}" == "cuda" ];then
             OOB_EXEC_HEADER=" CUDA_VISIBLE_DEVICES=${device_array[i]} "
+	    addtion_options+=" --nv_fuser "
         fi
         printf " ${OOB_EXEC_HEADER} \
 	    python main.py --test=True --batch_size ${batch_size} \
