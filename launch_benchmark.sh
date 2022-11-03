@@ -9,7 +9,7 @@ function main {
     set_environment
 
     # requirements
-    pip install scikit-image tensorboardX visdom==0.2.1
+    pip install scikit-image tensorboardX visdom==0.2.1 matplotlib tqdm
     mkdir -p outputs/dcgan
     cp -r ${CKPT_DIR} outputs/dcgan/.
     cd src
