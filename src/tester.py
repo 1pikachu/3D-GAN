@@ -71,6 +71,9 @@ def tester(args):
     D.to(args.device)
     G.eval()
     D.eval()
+    datatype = torch.float16 if args.precision == "float16" else torch.bfloat16 if args.precision == "bfloat16" else torch.float
+    G = torch.xpu.optimize(model=G, dtype=datatype)
+    D = torch.xpu.optimize(model=D, dtype=datatype)
 
     if args.channels_last:
         try:
@@ -104,20 +107,21 @@ def tester(args):
                 try:
                     G = torch.jit.trace(G, z, check_trace=False, strict=False)
                     print("---- JIT trace enable.")
-                    G = torch.jit.freeze(G)
+                    
                 except (RuntimeError, TypeError) as e:
                     print("---- JIT trace disable.")
                     print("failed to use PyTorch jit mode due to: ", e)
             
             with torch.autograd.profiler_legacy.profile(enabled=args.profile, use_xpu=True, record_shapes=False) as prof:
                 elapsed = time.time()
+                z = z.to(args.device)
                 fake = G(z)
                 samples = fake.unsqueeze(dim=0).detach().cpu().numpy()
                 if args.jit and i == 0:
                     try:
                         D = torch.jit.trace(D, fake, check_trace=False, strict=False)
                         print("---- JIT trace enable.")
-                        D = torch.jit.freeze(D)
+                        
                     except (RuntimeError, TypeError) as e:
                         print("---- JIT trace disable.")
                         print("failed to use PyTorch jit mode due to: ", e)
@@ -162,20 +166,21 @@ def tester(args):
                     try:
                         G = torch.jit.trace(G, z, check_trace=False, strict=False)
                         print("---- JIT trace enable.")
-                        G = torch.jit.freeze(G)
+                        
                     except (RuntimeError, TypeError) as e:
                         print("---- JIT trace disable.")
                         print("failed to use PyTorch jit mode due to: ", e)
                 
                 with torch.jit.fuser(fuser_mode):
                     elapsed = time.time()
+                    z = z.to(args.device)
                     fake = G(z)
                     samples = fake.unsqueeze(dim=0).detach().cpu().numpy()
                     if args.jit and i == 0:
                         try:
                             D = torch.jit.trace(D, fake, check_trace=False, strict=False)
                             print("---- JIT trace enable.")
-                            D = torch.jit.freeze(D)
+                            
                         except (RuntimeError, TypeError) as e:
                             print("---- JIT trace disable.")
                             print("failed to use PyTorch jit mode due to: ", e)
@@ -208,19 +213,20 @@ def tester(args):
                     try:
                         G = torch.jit.trace(G, z, check_trace=False, strict=False)
                         print("---- JIT trace enable.")
-                        G = torch.jit.freeze(G)
+                        
                     except (RuntimeError, TypeError) as e:
                         print("---- JIT trace disable.")
                         print("failed to use PyTorch jit mode due to: ", e)
                 
                 elapsed = time.time()
+                z = z.to(args.device)
                 fake = G(z)
                 samples = fake.unsqueeze(dim=0).detach().cpu().numpy()
                 if args.jit and i == 0:
                     try:
                         D = torch.jit.trace(D, fake, check_trace=False, strict=False)
                         print("---- JIT trace enable.")
-                        D = torch.jit.freeze(D)
+                        
                     except (RuntimeError, TypeError) as e:
                         print("---- JIT trace disable.")
                         print("failed to use PyTorch jit mode due to: ", e)
@@ -242,7 +248,7 @@ def tester(args):
                 try:
                     G = torch.jit.trace(G, z, check_trace=False, strict=False)
                     print("---- JIT trace enable.")
-                    G = torch.jit.freeze(G)
+                    
                 except (RuntimeError, TypeError) as e:
                     print("---- JIT trace disable.")
                     print("failed to use PyTorch jit mode due to: ", e)
@@ -250,13 +256,14 @@ def tester(args):
 
             with torch.jit.fuser(fuser_mode):
                 elapsed = time.time()
+                z = z.to(args.device)
                 fake = G(z)
                 samples = fake.unsqueeze(dim=0).detach().cpu().numpy()
                 if args.jit and i == 0:
                     try:
                         D = torch.jit.trace(D, fake, check_trace=False, strict=False)
                         print("---- JIT trace enable.")
-                        D = torch.jit.freeze(D)
+                        
                     except (RuntimeError, TypeError) as e:
                         print("---- JIT trace disable.")
                         print("failed to use PyTorch jit mode due to: ", e)
@@ -279,20 +286,21 @@ def tester(args):
                 try:
                     G = torch.jit.trace(G, z, check_trace=False, strict=False)
                     print("---- JIT trace enable.")
-                    G = torch.jit.freeze(G)
+                    
                 except (RuntimeError, TypeError) as e:
                     print("---- JIT trace disable.")
                     print("failed to use PyTorch jit mode due to: ", e)
             
 
             elapsed = time.time()
+            z = z.to(args.device)
             fake = G(z)
             samples = fake.unsqueeze(dim=0).detach().cpu().numpy()
             if args.jit and i == 0:
                 try:
                     D = torch.jit.trace(D, fake, check_trace=False, strict=False)
                     print("---- JIT trace enable.")
-                    D = torch.jit.freeze(D)
+                    
                 except (RuntimeError, TypeError) as e:
                     print("---- JIT trace disable.")
                     print("failed to use PyTorch jit mode due to: ", e)

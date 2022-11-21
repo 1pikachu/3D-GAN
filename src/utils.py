@@ -103,9 +103,9 @@ class ShapeNetDataset(data.Dataset):
 def generateZ(args, batch):
 
     if args.z_dis == "norm":
-        Z = torch.Tensor(batch, args.z_dim).normal_(0, 0.33).to(args.device)
+        Z = torch.Tensor(batch, args.z_dim).normal_(0, 0.33)
     elif args.z_dis == "uni":
-        Z = torch.randn(batch, args.z_dim).to(args.device)
+        Z = torch.randn(batch, args.z_dim)
     else:
         print("z_dist is not normal or uniform")
 
