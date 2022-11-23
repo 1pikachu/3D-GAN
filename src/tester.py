@@ -71,9 +71,10 @@ def tester(args):
     D.to(args.device)
     G.eval()
     D.eval()
-    datatype = torch.float16 if args.precision == "float16" else torch.bfloat16 if args.precision == "bfloat16" else torch.float
-    G = torch.xpu.optimize(model=G, dtype=datatype)
-    D = torch.xpu.optimize(model=D, dtype=datatype)
+    if args.device == "xpu":
+        datatype = torch.float16 if args.precision == "float16" else torch.bfloat16 if args.precision == "bfloat16" else torch.float
+        G = torch.xpu.optimize(model=G, dtype=datatype)
+        D = torch.xpu.optimize(model=D, dtype=datatype)
 
     if args.channels_last:
         try:
