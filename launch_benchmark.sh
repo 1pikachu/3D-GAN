@@ -10,6 +10,8 @@ function main {
 
     # requirements
     pip install scikit-image tensorboardX visdom==0.2.1 matplotlib tqdm --no-deps
+    pip install protobuf==4.25.1
+    pip install websocket
     mkdir -p outputs/dcgan
     cp -r ${CKPT_DIR} outputs/dcgan/.
     cd src
