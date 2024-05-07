@@ -91,6 +91,11 @@ def tester(args):
        fuser_mode = "none"
     print("---- fuser mode:", fuser_mode)
 
+    if args.compile:
+        print("----enable compiler")
+        G = torch.compile(G, backend=args.backend, options={"freezing": True})
+        D = torch.compile(D, backend=args.backend, options={"freezing": True})
+
     # test_z = np.load("test_z.npy")
     # print (test_z.shape)
     # N = test_z.shape[0]
