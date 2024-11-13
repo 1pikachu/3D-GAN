@@ -71,7 +71,7 @@ def tester(args):
     D.to(args.device)
     G.eval()
     D.eval()
-    if args.device == "xpu":
+    if args.device == "xpu" and args.ipex:
         datatype = torch.float16 if args.precision == "float16" else torch.bfloat16 if args.precision == "bfloat16" else torch.float
         G = torch.xpu.optimize(model=G, dtype=datatype)
         D = torch.xpu.optimize(model=D, dtype=datatype)

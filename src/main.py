@@ -43,14 +43,16 @@ def main():
     parser.add_argument('--nv_fuser', action='store_true', default=False, help='enable nv fuser')
     parser.add_argument('--compile', action='store_true', default=False, help='compile model')
     parser.add_argument('--backend', default="inductor", type=str, help='backend')
+    parser.add_argument('--ipex', action='store_true', default=False)
     args = parser.parse_args()
     print(args)
 
     # list params
     args = params.print_params(args)
 
-    if args.device == "xpu":
+    if args.device == "xpu" and args.ipex:
         import intel_extension_for_pytorch
+        print("Use IPEX")
     elif args.device == "cuda":
         torch.backends.cuda.matmul.allow_tf32 = False
 
